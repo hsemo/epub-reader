@@ -1,18 +1,91 @@
 from math import ceil
 from blessed import Terminal
+from blessed.keyboard import Keystroke
+
+from reader import Reader
+
+class View:
+    def __init__(self, scr, width=0, height=0):
+        self.scr = scr
+
+        self.vw = width
+        self.vh = height
+
+        if (width == 0 or width > scr.width - 2) and (height == 0 or height > scr.height):
+            # substracting 2 to get the space to draw box around the view
+            self.vw = scr.width - 2
+            self.vh = scr.height - 2
+
+        self.hc = ceil(self.scr.width / 2) - ceil(self.vw / 2)
+        self.vc = ceil(self.scr.height / 2) - ceil(self.vh / 2)
+
+        self.__boxes = [
+            ['*', '*', '*', '*', '-', '|'],
+            ['┌', '┐', '┘', '└', '─', '│'],
+            ['┏', '┓', '┛', '┗', '━', '┃'],
+            ['╔', '╗', '╝', '╚', '═', '║'],
+            ['╭', '╮', '╯', '╰', '─', '│'],
+            ['', ' ', ' ', ' ', ' ', '']
+        ]
+
+        self.box = self.__boxes[1]
+
+
+    def drawBox(self):
+        '''
+        Draws a box around the view.
+        '''
+
+        # substracting 1 cause x,y are the cordinates of the view
+        x = self.hc - 1
+        y = self.vc - 1
+        cords = [(x, y), (x + self.vw + 1, y), (x + self.vw + 1, y + self.vh + 1), (x, y + self.vh + 1)] # cordinates of the four corners
+        i = 0
+        for cord in cords:
+            with self.scr.location(*cord):
+                print(self.box[i], end = '')
+                i += 1
+
+        for i in range(x+1, x + self.vw + 1):
+            with self.scr.location(i, y):
+                print(self.box[4], end = '')
+            with self.scr.location(i, y + self.vh + 1):
+                print(self.box[4], end = '')
+
+        for i in range(y+1, y + self.vh + 1):
+            with self.scr.location(x, i):
+                print(self.box[5], end = '')
+            with self.scr.location(x + self.vw + 1, i):
+                print(self.box[5], end = '')
+
+
+    def printView(self, viewLines):
+        self.drawBox()
+        for i, line in enumerate(viewLines):
+            with self.scr.location(self.hc, i + self.vc):
+                print(line, end = '')
 
 
 class Viewer:
-    def __init__(self, chapter_text = ''):
+    def __init__(self):
         self.scr = Terminal()
+        self.r = Reader('ebook.epub')
         # self.vw = self.scr.width
         # self.vh = self.scr.height
-        self.vw = 20
-        self.vh = 10
+        self.vw = 40
+        self.vh = 40
+
+        if (self.vw == 0 or self.vw > self.scr.width - 2) and (self.vh == 0 or self.vh > self.scr.height):
+            # substracting 2 to get the space to draw box around the view
+            self.vw = self.scr.width - 2
+            self.vh = self.scr.height - 2
+
+        self.v = View(self.scr, self.vw, self.vh)
 
         self.cur = 0 # reading-cursor position line wise
 
-        self.chapter = self.chapterToLines(chapter_text)
+        # self.chapter = self.chapterToLines(chapter_text)
+        self.chapter = []
         self.totalLines = len(self.chapter)
 
 
@@ -35,6 +108,7 @@ class Viewer:
         i = 0
         for i, c in enumerate(text):
             vs += c
+            if 
 
             if c == '\n' or len(vs) >= self.vw:
                 viewLines.append(vs)
@@ -44,23 +118,6 @@ class Viewer:
             viewLines.append(vs)
 
         return viewLines
-
-
-    # def calcChapLines(self):
-    #     '''
-    #     Calculates chapter lines
-    #     '''
-    #
-    #     lines = 0
-    #     p = 0 # previous position of newLine char
-    #     for i,c in enumerate(self.chapter):
-    #         if c == '\n':
-    #             lines += ceil((i - p) / self.vw)
-    #             p = i
-    #
-    #     if lines == 0:
-    #         lines = ceil(len(self.chapter) / self.vw)
-    #     return lines
 
 
     def clear(self):
@@ -80,36 +137,6 @@ class Viewer:
 
         if self.cur >= self.totalLines - self.vh + 2:
             self.cur = self.totalLines - self.vh + 2
-
-    # def __scroll(self, scroll_lines):
-    #     '''
-    #     Scrolls @{scroll_lines} number of lines down
-    #     or up if @{scroll_lines} is negative
-    #     '''
-    #
-    #     if scroll_lines == 0:
-    #         return
-    #     elif scroll_lines < 0:
-    #         s = self.chapter[self.cur-1::-1]
-    #     else:
-    #         s = self.chapter[self.cur:]
-    #
-    #     viewLines = 0
-    #     vs = 0
-    #     i = 0
-    #     for i, c in enumerate(s):
-    #         if viewLines >= scroll_lines:
-    #             break
-    #
-    #         vs += 1
-    #
-    #         if c == '\n' or vs >= self.vw:
-    #             viewLines += 1
-    #             vs = 0
-    #
-    #     self.cur += i if scroll_lines > 0 else i * -1
-    #     self.cur = 0 if self.cur < 0
-    #     self.cur = len(self.chapter) - 1 if self.cur >= len(self.chapter)
 
 
     def scrollLineUp(self):
@@ -142,28 +169,29 @@ class Viewer:
         self.__scroll(self.vh)
 
 
-    def printView(self):
-        # viewLines = []
-        # vs = ''
-        # for c in self.chapter[self.cur:]:
-        #     if len(viewLines) >= self.vh:
-        #         break
-        #
-        #     vs += c
-        #
-        #     if c == '\n' or len(vs) >= self.vw:
-        #         viewLines.append(vs)
-        #         vs = ''
+    def nextChapter(self):
+        ischap, chap = self.r.nextChapter()
+        self.setChapter(chap if ischap else self.chapter)
 
+
+    def prevChapter(self):
+        ischap, chap = self.r.prevChapter()
+        self.setChapter(chap if ischap else self.chapter)
+
+
+    def printView(self):
         self.clear()
-        for i, line in enumerate(self.chapter[self.cur:self.cur + self.vh]):
-            with self.scr.location(0, i):
-                print(line, end = '')
+        # for i, line in enumerate(self.chapter[self.cur:self.cur + self.vh]):
+        #     with self.scr.location(0, i):
+        #         print(line, end = '')
+        # print((self.scr.width, self.scr.height))
+        self.v.printView(self.chapter[self.cur:self.cur + self.vh])
 
 
     def view(self):
-        with self.scr.fullscreen(), self.scr.cbreak(), self.scr.hidden_cursor():
-            key = ''
+        self.nextChapter()
+        with self.scr.fullscreen(), self.scr.cbreak(), self.scr.hidden_cursor(), self.scr.raw():
+            key = Keystroke()
             while True:
                 match key:
                     case k if k in ['j', 'J']:
@@ -171,12 +199,15 @@ class Viewer:
                     case k if k in ['k', 'K']:
                         self.scrollLineUp()
                     case k if k in ['h', 'H']:
-                        self.scrollPageUp()
+                        self.prevChapter()
                     case k if k in ['l', 'L']:
-                        self.scrollPageDown()
+                        self.nextChapter()
                     case k if k in ['q', 'Q']:
                         break
                     case _:
+                        # self.clear()
+                        # with self.scr.location(50, 10):
+                        #     print(f'name: {key.name}, code: {key.code}')
                         pass
 
                 self.printView()
@@ -184,5 +215,5 @@ class Viewer:
 
 
 v = Viewer()
-v.setChapter('\n'.join([f'This is chapter line {i}.' for i in range(100)]))
+# v.setChapter('\n'.join([f'This is chapter line {i}.' for i in range(100)]))
 v.view()
