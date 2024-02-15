@@ -1,8 +1,10 @@
 from math import ceil
 from blessed import Terminal
 from blessed.keyboard import Keystroke
+import logging as log
 
 from reader import Reader
+from ehtmlparser import EHTMLParser
 
 class View:
     def __init__(self, scr, width=0, height=0):
@@ -70,9 +72,10 @@ class Viewer:
     def __init__(self):
         self.scr = Terminal()
         self.r = Reader('ebook.epub')
+        self.parser = EHTMLParser(self.scr)
         # self.vw = self.scr.width
         # self.vh = self.scr.height
-        self.vw = 40
+        self.vw = 70
         self.vh = 40
 
         if (self.vw == 0 or self.vw > self.scr.width - 2) and (self.vh == 0 or self.vh > self.scr.height):
@@ -105,19 +108,32 @@ class Viewer:
     def chapterToLines(self, text):
         viewLines = []
         vs = ''
-        i = 0
-        for i, c in enumerate(text):
-            vs += c
-            if 
+        vl = 0 # length of vs without escape sequences
+        for line in text:
+            if line[0] == '\x1b':
+                vs += line
+                continue
+            for i, c in enumerate(line):
+                vs += c
+                vl += 1
 
-            if c == '\n' or len(vs) >= self.vw:
-                viewLines.append(vs)
-                vs = ''
+                if c == '\n' or vl >= self.vw:
+                    viewLines.append(vs)
+                    vs = ''
+                    vl = 0
 
         if vs:
             viewLines.append(vs)
 
         return viewLines
+
+
+    def parse_html(self, html_text):
+        '''
+        HTML to text + style escape sequences
+        '''
+        self.parser.feed(html_text)
+        return self.parser.parsed_text
 
 
     def clear(self):
@@ -171,12 +187,12 @@ class Viewer:
 
     def nextChapter(self):
         ischap, chap = self.r.nextChapter()
-        self.setChapter(chap if ischap else self.chapter)
+        self.setChapter(self.parse_html(chap) if ischap else False)
 
 
     def prevChapter(self):
         ischap, chap = self.r.prevChapter()
-        self.setChapter(chap if ischap else self.chapter)
+        self.setChapter(self.parse_html(chap) if ischap else False)
 
 
     def printView(self):
