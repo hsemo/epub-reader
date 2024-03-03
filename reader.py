@@ -5,14 +5,11 @@ from ebooklib import epub
 from bs4 import BeautifulSoup as bs
 
 
-# book = epub.read_epub('ebook.epub')
-# chapters = [book.get_item_with_id(item[0]) for item in book.spine]
-
-
 class Reader:
     def __init__(self, bpath):
         self.book = epub.read_epub(bpath)
-        self.chapters = [self.book.get_item_with_id(item[0]) for item in self.book.spine]
+        self.items = [self.book.get_item_with_id(item[0]) for item in self.book.spine]
+        log.debug("Total items: %s", len(self.items))
         self.currentChapIndex = -1
 
 
@@ -36,11 +33,12 @@ class Reader:
         '''
 
         self.currentChapIndex += 1
-        if self.currentChapIndex >= len(self.chapters):
-            self.currentChapIndex = len(self.chapters) - 1
+        if self.currentChapIndex >= len(self.items):
+            self.currentChapIndex = len(self.items) - 1
             return (False, None,)
 
-        return (True, self.__getText(self.chapters[self.currentChapIndex]),)
+        log.debug("nextChapter - Going to chapter: %s", self.currentChapIndex)
+        return (True, self.__getText(self.items[self.currentChapIndex]),)
 
 
     def prevChapter(self):
@@ -53,6 +51,7 @@ class Reader:
             self.currentChapIndex = -1
             return (False, None)
 
-        return (True, self.__getText(self.chapters[self.currentChapIndex]))
+        log.debug("prevChapter - Going to chapter: %s", self.currentChapIndex)
+        return (True, self.__getText(self.items[self.currentChapIndex]))
 
 

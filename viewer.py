@@ -6,6 +6,8 @@ import logging as log
 from reader import Reader
 from ehtmlparser import EHTMLParser
 
+log.basicConfig(level=log.DEBUG, filename='epub_reader.log', filemode='w')
+
 class View:
     def __init__(self, scr, width=0, height=0):
         self.scr = scr
@@ -13,7 +15,7 @@ class View:
         self.vw = width
         self.vh = height
 
-        if (width == 0 or width > scr.width - 2) and (height == 0 or height > scr.height):
+        if (width == 0 or width > scr.width - 2) and (height == 0 or height > scr.height - 2):
             # substracting 2 to get the space to draw box around the view
             self.vw = scr.width - 2
             self.vh = scr.height - 2
@@ -75,15 +77,11 @@ class Viewer:
         self.parser = EHTMLParser(self.scr)
         # self.vw = self.scr.width
         # self.vh = self.scr.height
-        self.vw = 70
-        self.vh = 40
 
-        if (self.vw == 0 or self.vw > self.scr.width - 2) and (self.vh == 0 or self.vh > self.scr.height):
-            # substracting 2 to get the space to draw box around the view
-            self.vw = self.scr.width - 2
-            self.vh = self.scr.height - 2
+        self.v = View(self.scr, 0, 0)
 
-        self.v = View(self.scr, self.vw, self.vh)
+        self.vw = self.v.vw
+        self.vh = self.v.vh
 
         self.cur = 0 # reading-cursor position line wise
 
@@ -103,6 +101,7 @@ class Viewer:
 
         self.chapter = self.chapterToLines(chapter_text)
         self.totalLines = len(self.chapter)
+        self.cur = 0
 
 
     def chapterToLines(self, text):
@@ -132,6 +131,7 @@ class Viewer:
         '''
         HTML to text + style escape sequences
         '''
+        self.parser.parsed_text = []
         self.parser.feed(html_text)
         return self.parser.parsed_text
 
@@ -149,9 +149,10 @@ class Viewer:
         self.cur += lines
 
         # checking if the cursor is out of bound
-        self.cur = 0 if self.cur < 0 else self.cur
+        if self.cur < 0:
+            self.cur = 0
 
-        if self.cur >= self.totalLines - self.vh + 2:
+        elif self.cur >= self.totalLines - self.vh + 2:
             self.cur = self.totalLines - self.vh + 2
 
 
@@ -187,12 +188,12 @@ class Viewer:
 
     def nextChapter(self):
         ischap, chap = self.r.nextChapter()
-        self.setChapter(self.parse_html(chap) if ischap else False)
+        self.setChapter(self.parse_html(chap) if ischap else '')
 
 
     def prevChapter(self):
         ischap, chap = self.r.prevChapter()
-        self.setChapter(self.parse_html(chap) if ischap else False)
+        self.setChapter(self.parse_html(chap) if ischap else '')
 
 
     def printView(self):
