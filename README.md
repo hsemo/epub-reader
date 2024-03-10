@@ -8,7 +8,7 @@
 ### 🔧 Install
 Clone the git repository and cd into it:
 ```bash
-git clone https://github.com/hsemo/epub-reader.git && cd epub-reader
+git clone 'https://github.com/hsemo/epub-reader.git' && cd epub-reader
 ```
 
 Install the requirements:
