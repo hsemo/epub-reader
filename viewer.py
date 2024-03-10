@@ -65,18 +65,17 @@ class View:
 
     def printView(self, viewLines):
         self.drawBox()
+        # print(f'\x1b[{self.vc+1 + i};{self.hc}H\x1b[{self.hc}C', end='')
         for i, line in enumerate(viewLines):
             with self.scr.location(self.hc, i + self.vc):
                 print(line, end = '')
 
 
 class Viewer:
-    def __init__(self):
+    def __init__(self, file_path):
         self.scr = Terminal()
-        self.r = Reader('ebook.epub')
+        self.r = Reader(file_path)
         self.parser = EHTMLParser(self.scr)
-        # self.vw = self.scr.width
-        # self.vh = self.scr.height
 
         self.v = View(self.scr, 0, 0)
 
@@ -85,7 +84,6 @@ class Viewer:
 
         self.cur = 0 # reading-cursor position line wise
 
-        # self.chapter = self.chapterToLines(chapter_text)
         self.chapter = []
         self.totalLines = len(self.chapter)
 
@@ -108,9 +106,11 @@ class Viewer:
         viewLines = []
         vs = ''
         vl = 0 # length of vs without escape sequences
+        formatting = ''
         for line in text:
-            if line[0] == '\x1b':
+            if line and line[0] == '\x1b':
                 vs += line
+                formatting = line
                 continue
             for i, c in enumerate(line):
                 vs += c
@@ -118,7 +118,8 @@ class Viewer:
 
                 if c == '\n' or vl >= self.vw:
                     viewLines.append(vs)
-                    vs = ''
+                    # emptying the line and length of viewable characters
+                    vs = formatting
                     vl = 0
 
         if vs:
@@ -129,11 +130,11 @@ class Viewer:
 
     def parse_html(self, html_text):
         '''
-        HTML to text + style escape sequences
+        HTML to colorfull terminal text
         '''
-        self.parser.parsed_text = []
+        self.parser.clear()
         self.parser.feed(html_text)
-        return self.parser.parsed_text
+        return self.parser.get_parsed_text()
 
 
     def clear(self):
@@ -142,8 +143,8 @@ class Viewer:
 
     def __scroll(self, lines):
         '''
-        Scrolls @{scroll_lines} number of lines down
-        or up if @{scroll_lines} is negative
+        Scrolls <lines> number of lines down
+        or up if <lines> is negative
         '''
 
         self.cur += lines
@@ -198,10 +199,6 @@ class Viewer:
 
     def printView(self):
         self.clear()
-        # for i, line in enumerate(self.chapter[self.cur:self.cur + self.vh]):
-        #     with self.scr.location(0, i):
-        #         print(line, end = '')
-        # print((self.scr.width, self.scr.height))
         self.v.printView(self.chapter[self.cur:self.cur + self.vh])
 
 
@@ -210,27 +207,24 @@ class Viewer:
         with self.scr.fullscreen(), self.scr.cbreak(), self.scr.hidden_cursor(), self.scr.raw():
             key = Keystroke()
             while True:
+                if key.is_sequence:
+                    key = key.name
+
                 match key:
-                    case k if k in ['j', 'J']:
+                    case k if k in ['j', 'J', 'KEY_DOWN']:
                         self.scrollLineDown()
-                    case k if k in ['k', 'K']:
+                    case k if k in ['k', 'K', 'KEY_UP']:
                         self.scrollLineUp()
-                    case k if k in ['h', 'H']:
+                    case k if k in ['h', 'H', 'KEY_LEFT']:
                         self.prevChapter()
-                    case k if k in ['l', 'L']:
+                    case k if k in ['l', 'L', 'KEY_RIGHT']:
                         self.nextChapter()
                     case k if k in ['q', 'Q']:
                         break
                     case _:
-                        # self.clear()
-                        # with self.scr.location(50, 10):
-                        #     print(f'name: {key.name}, code: {key.code}')
-                        pass
+                        log.info(f'name: {key.name}, code: {key.code}')
 
                 self.printView()
                 key = self.scr.inkey()
 
 
-v = Viewer()
-# v.setChapter('\n'.join([f'This is chapter line {i}.' for i in range(100)]))
-v.view()

@@ -2,7 +2,6 @@ import logging as log
 
 import ebooklib
 from ebooklib import epub
-from bs4 import BeautifulSoup as bs
 
 
 class Reader:
@@ -14,17 +13,6 @@ class Reader:
 
 
     def __getText(self, chap):
-        # soup = bs(chap.get_content().decode())
-
-        # with open("chapter_html.html", 'w') as f:
-        #     f.write(chap.get_content().decode())
-
-        # chap_text = soup.find_all('body')[0].get_text()
-
-        # with open("chapter_text.txt", 'w') as f:
-        #     f.write(chap_text)
-
-        # return chap_text
         return chap.get_content().decode()
 
     def nextChapter(self):

@@ -1,5 +1,4 @@
 from html.parser import HTMLParser
-import logging as log
 
 
 class EHTMLParser(HTMLParser):
@@ -9,39 +8,68 @@ class EHTMLParser(HTMLParser):
 
         self.tags = []
         self.style = {
-            'h1': term.bold_black_on_red,
-            'h2': term.bold_black_on_red,
-            'h3': term.bold_black_on_red,
-            'h4': term.bold_black_on_red,
-            'h5': term.bold_black_on_red,
-            'h6': term.bold_black_on_red,
-            'p': term.black_on_white,
-            '*': term.black_on_blue
+            'h1': term.black_on_red,
+            'h2': term.black_on_red,
+            'h3': term.black_on_red,
+            'h4': term.black_on_red,
+            'h5': term.black_on_red,
+            'h6': term.black_on_red,
+            'p': ''
         }
+        self.open_tag = ''
+
+        self.valid_data = False
 
         # a list of data strings and formatted escape sequences
         self.parsed_text = []
 
 
     def handle_starttag(self, tag, attrs):
-        self.tags.append(tag)
-        # style_key = self.tags[-1] if self.style.get(self.tags[-1] if len(self.tags) > 0 else 'notag') else '*'
-        style = self.style.get(tag)
-        if style:
-            self.parsed_text.append(style)
+        if not self.is_tag_valid(tag):
+            return
+        self.valid_data = True
+        self.open_tag = tag
+        self.parsed_text.append(self.style[tag])
 
 
     def handle_endtag(self, tag):
-        if len(self.tags) > 0:
-            # log.debug('self.tags: %s, current tag: %s', self.tags, tag)
-            self.tags.pop()
+        if tag != self.open_tag:
+            return
 
+        # reset the open_tag and data
+        self.open_tag = ''
+        self.valid_data = False
 
-    def handle_data(self, data):
-        self.parsed_text.append(data)
+        # appending newline after the previous dataline 'cause previous tag is closed
+        self.parsed_text[-1] += '\n\n'
+
+        # reset previous terminal style
         self.parsed_text.append(self.term.normal)
 
 
-# parser = EHTMLParser()
-# parser.feed('<html><head><title>Test</title></head>'
-#             '<body class="con"><h1>Parse me!</h1><img src="image.png" /></body></html>')
+    def handle_data(self, data):
+        if self.valid_data:
+            self.parsed_text.append(data)
+
+
+    def is_tag_valid(self, tag):
+        """
+        Checks if the tag is present in the style dict or not
+        """
+        return tag in self.style.keys()
+
+
+    def clear(self):
+        """
+        Clears the current parsed text of parser
+        """
+
+        self.parsed_text = []
+
+
+    def get_parsed_text(self):
+        """
+        Returns the current parsed_text list
+        """
+        return self.parsed_text
+
